@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Terremotos España</title>
+        <script
+            src="https://code.jquery.com/jquery-3.4.1.js"
+            integrity="sha256-WpOohJOqMqqyKL9FccASB9O0KwACQJpFTUBLTYOVvVU="
+            crossorigin="anonymous"></script>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+            integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+            crossorigin=""/>
+        <script
+            src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+            crossorigin=""></script>
+        <!-- Incluir DataTables CSS -->
+        <link
+            rel="stylesheet"
+            type="text/css"
+            href="https://cdn.datatables.net/1.12.1/css/jquery.dataTables.css">
+        <!-- Incluir DataTables JS -->
+        <script
+            type="text/javascript"
+            charset="utf8"
+            src="https://cdn.datatables.net/1.12.1/js/jquery.dataTables.js"></script>
+    </head>
+    <body>
+        <div id="mapa" style="width: 1840px; height: 800px;"></div>
+        <table id="earthquake-table" class="display" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Hora</th>
+                    <th>Magnitud</th>
+                    <th>Localización</th>
+                    <th>Lat</th>
+                    <th>Long</th>
+                </tr>
+            </thead>
+            <tbody id="earthquake-table-body"></tbody>
+        </table>
+
+        <script>
+            let earthquakeIcon = L.icon({
+                iconUrl: 'https://cdn.icon-icons.com/icons2/3255/PNG/512/earthquake_weather_house_icon_205779.png',    
+                iconSize: [24, 24]
+            });
+
+            let baseMapLayer = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                maxZoom: 15,
+                attribution: '© OpenStreetMap contributors'
+            });
+
+            let mainMap = L
+                .map('mapa')
+                .setView([
+                    37.7305, -6.5356
+                ], 6)
+                .addLayer(baseMapLayer);
+
+            $(document).ready(() => {
+                let fetchEarthquakes = async function () {
+                    let result;
+                    await $.ajax({
+                        'type': 'post',
+                        'url': 'data.php',
+                        'success': function (data) {
+                            result = JSON.parse(data);
+                        }
+                    });
+                    return result;
+                }();
+
+                fetchEarthquakes.then(function (data) {
+                    for (let i = 0; i < data.length; i++) {
+                        let quakeLocation = [
+                            data[i].lat,
+                            data[i].long
+                        ];
+                        let quakeDetailsPopup = data[i].time + " " + data[i].date + "<br><a href='" +
+                                data[i].link + "' target='_blank'>" + data[i].location + "</a> (" + data[i].magnitude +
+                                ")";
+                        L
+                            .marker(quakeLocation, {icon: earthquakeIcon})
+                            .addTo(mainMap)
+                            .bindPopup(quakeDetailsPopup);
+                    }
+                });
+
+                fetch('data.php')
+                    .then(response => response.json())
+                    .then(data => {
+                        var earthquakeTableBody = document.getElementById('earthquake-table-body');
+                        data.forEach(item => {
+                            var row = document.createElement('tr');
+                            row.innerHTML = `
+                            <td>${item.date}</td>
+                            <td>${item.time}</td>
+                            <td>${item.magnitude}</td>
+                            <td>${item.location}</td>
+                            <td>${item.lat}</td>
+                            <td>${item.long}</td>
+                        `;
+                            earthquakeTableBody.appendChild(row);
+                        });
+
+                        $('#earthquake-table').DataTable();
+                    })
+                    .catch(error => console.error('Error:', error));
+            });
+        </script>
+    </body>
+</html>
